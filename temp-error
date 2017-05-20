@@ -1,0 +1,301 @@
+#include "stdafx.h"
+#include <iostream>
+#include <cmath>
+#include <string>
+#include <vector>
+#include <ctime>
+#include <cstdlib>
+#include <iomanip>
+using namespace std;
+
+
+class Image {
+public:
+	string filename;
+	double currentScore;
+	double expectedWin;
+	Image(const Image& image) :filename(image.filename), currentScore(1400), expectedWin(0.5){ }
+	Image& operator=(const Image& image){
+		filename = image.filename;
+		return *this;  
+	}
+	Image(string _filename) : filename(_filename), currentScore(1400), expectedWin(0.5) {}
+	void Show(void){}//
+};
+
+
+class Iterator
+{
+public:
+	virtual ~Iterator(){}
+	virtual void addnew(Image){}
+	virtual Image* theimage(int){ return NULL; }
+	virtual Image* theimage(){ return NULL; }
+	virtual int sizenow(){ return 0; }
+	virtual int size(){ return 0; }
+	virtual const Iterator& operator++(){	}
+	virtual const Iterator& operator++(int){}
+	virtual const Iterator& operator--(){}
+	virtual const Iterator& operator--(int) {}
+	virtual Image& operator*() {	}
+	virtual bool operator!=(const Iterator &other)const {}
+	virtual Iterator& operator=(Iterator& other){}
+	bool operator==(const Iterator &other) const
+	{
+		return !(*this != other);
+	}
+};
+
+class VectorIterator :public Iterator
+{
+	vector<Image> _image;
+	int cur;
+	int _index;
+public:
+	VectorIterator() :cur(-1){}
+	VectorIterator(vector<Image> image, int index) :_image(image), _index(index), cur(-1){}
+	VectorIterator(const VectorIterator& other) :_image(other._image), _index(other._index){}
+	~VectorIterator(){}
+	Image* theimage(int id);
+	Image* theimage();
+	void addnew(Image newimage);
+	int sizenow();//
+	int size();
+	const Iterator& operator++();//
+	const Iterator& operator++(int);//
+	const Iterator& operator--();
+	const Iterator& operator--(int);
+	Iterator& operator=(VectorIterator& other);
+	Image& operator*();//
+	bool operator!=(const Iterator &other)const;//
+};
+
+class Collection
+{
+public:
+	virtual ~Collection(){	}
+	virtual Iterator* begin(){	}
+	virtual Iterator* end() {	}
+	virtual int size(){ return 0; }
+};
+
+class VectorCollection :public Collection
+{
+	friend class VectorIterator;
+	vector<Image> _image;
+	int _size;
+public:
+	VectorCollection() :_size(5000){		}
+	VectorCollection(int size, vector<Image> image) :_size(size), _image(image){	}
+	~VectorCollection(){	}
+	int size(){ return _size; }
+	Iterator* begin() const;
+	Iterator* end() const;
+};
+
+class Picture {
+	Iterator* _images;
+	double computeNewScore(int result, double oldScore, double expectedWin);//
+
+public:
+	Picture();
+	~Picture();
+	pair<int, int> PickTwo(void);
+	void UpdataScore(int winid, int loseid);
+	void AddImage(string filename);
+	void ShowId(int id);
+};
+
+
+
+
+Picture::Picture()
+{
+	_images = new VectorIterator;
+
+}
+Picture::~Picture()
+{
+	delete _images;
+}
+
+pair<int, int> Picture::PickTwo(void)
+{
+	srand((int)time(NULL));
+	//suppose the scores are between 1000 to 1800
+	int num = _images->size();//
+	int x = rand() % num;
+	double xscore = _images->theimage(x)->currentScore; //————————————change double
+	Iterator* temp = new VectorIterator;
+	int *a = new int[num];//record the recordance of temp and images——————————————change 
+	int cnt = 0;
+	for (int i = 0; i<num; i++)
+	{
+		if (_images->theimage(i)->currentScore <xscore + 100 && _images->theimage(i)->currentScore >xscore - 100 && i != x)
+		{
+			temp->addnew(*_images->theimage(i));
+			cnt++;
+			a[cnt] = i;
+		}
+
+	}
+	srand((int)time(NULL));
+	int y = rand() % cnt;
+	int j = 0;
+	for (j = 0; j < num; j++)
+	{
+		if (a[y] = j)
+			break;
+	}
+	pair<int, int> data = make_pair(x, j);
+	delete[]a;
+	delete temp;
+	return data;
+}
+void Picture::UpdataScore(int winid, int loseid)
+{
+	if (_images->theimage(winid)->currentScore == _images->theimage(loseid)->currentScore){
+		_images->theimage(winid)->expectedWin = 0.5;
+		_images->theimage(loseid)->expectedWin = 0.5;
+		return;
+	}
+	else{
+		double winSub = _images->theimage(loseid)->currentScore - _images->theimage(winid)->currentScore;
+		double wintemp = winSub / 400;
+		double lostSub = -winSub;//——————————————change 
+		double losttemp = lostSub / 400;
+		_images->theimage(winid)->expectedWin = 1 / (1 + (float)pow(10, wintemp));
+		_images->theimage(loseid)->expectedWin = 1 / (1 + (float)pow(10, losttemp));
+	}
+
+	double oldScore = _images->theimage(winid)->currentScore;//——————————————change double float
+	_images->theimage(winid)->currentScore = computeNewScore(1, oldScore, _images->theimage(winid)->expectedWin);
+
+	oldScore = _images->theimage(loseid)->currentScore;
+	_images->theimage(loseid)->currentScore = computeNewScore(0, oldScore, _images->theimage(loseid)->expectedWin);
+	return;
+}
+double Picture::computeNewScore(int result, double oldScore, double expectedWin){
+	double temp = result - expectedWin;
+	double currentScore = oldScore + 10 * temp;
+	return currentScore;
+}
+void Picture::AddImage(string filename)
+{
+	Image newimage(filename);
+	_images->addnew(newimage);
+}
+void Picture::ShowId(int id)
+{
+	_images->theimage(id)->Show();
+}
+
+
+
+Iterator* VectorCollection::begin() const
+{
+	return new VectorIterator(_image, 0);
+}
+Iterator* VectorCollection::end() const
+{
+	return new VectorIterator(_image, _size);
+}
+
+
+
+const Iterator& VectorIterator::operator++()
+{
+	_index++;
+	return *this;
+}
+const Iterator& VectorIterator::operator++(int)
+{
+	_index++;
+	return VectorIterator(_image, _index - 1);
+}
+const Iterator& VectorIterator::operator--()
+{
+	_index--;
+	return *this;
+}
+const Iterator& VectorIterator::operator--(int)
+{
+	_index--;
+	return VectorIterator(_image, _index + 1);
+}
+Image& VectorIterator::operator*()
+{
+	return _image[_index];
+}
+bool VectorIterator::operator!=(const Iterator &other)const
+{
+	return (_image != ((VectorIterator*)(&other))->_image ||
+		_index != ((VectorIterator*)(&other))->_index || cur != ((VectorIterator*)(&other))->cur);
+}
+Image* VectorIterator::theimage()
+{
+	return &_image[_index];
+}
+Image* VectorIterator::theimage(int id)
+{
+	if (id <= cur)
+		return &_image[id];
+	else
+		return NULL;
+}
+void VectorIterator::addnew(Image newimage)
+{
+	_image.push_back(newimage);
+	cur++;
+}
+int VectorIterator::sizenow()//——————————————
+{
+	return _index;
+}
+int VectorIterator::size()
+{
+	return _image.size();
+}
+Iterator& VectorIterator::operator=(VectorIterator &other)
+{
+	Iterator *temp = new VectorIterator(other);
+	return *temp;
+}
+
+
+void qsort(Iterator& begin, Iterator& end)
+{
+	if (begin.sizenow() >= end.sizenow())
+		return;
+	Iterator m = begin, n = end;
+	Image temp = *n;
+	while (m.sizenow() < n.sizenow())
+	{
+		while (m.sizenow() < n.sizenow() && m.theimage()->currentScore >= temp.currentScore)
+			m++;
+		if (m.theimage()->currentScore< temp.currentScore)
+		{
+			*n = *m;
+			n--;
+		}
+		while (m.sizenow() < n.sizenow() && n.theimage()->currentScore <= temp.currentScore)
+			n--;
+		if (n.theimage()->currentScore < temp.currentScore)
+		{
+			*m = *n;
+			m++;
+		}
+	}
+	*m = temp;
+	m--;
+	qsort(begin, m);
+	n++;
+	qsort(n, end);
+
+
+}
+int main()
+{
+	system("pause");
+	return 0;
+}
