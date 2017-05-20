@@ -1,0 +1,186 @@
+#include <iostream>
+#include <cmath>
+#include <string>
+#include <vector>
+#include <ctime>
+#include <cstdlib>
+#include <iomanip>
+using namespace std;
+
+class Image {
+	string filename;
+public:
+	double currentScore;
+	double expectedWin;
+	Image(string _filename) : filename(_filename), currentScore(1400), expectedWin(0.5) {}
+	void Show(void);//
+};
+
+
+class Iterator
+{
+public:
+	virtual ~Iterator(){}
+	virtual void addnew(Image){}
+	virtual Image* theimage(int){ return NULL; }
+	virtual Image* theimage(){ return NULL; }
+	virtual int size(){ return 0; }
+};
+
+class VectorIterator :public Iterator
+{
+	vector<Image> _image;
+	int cur;
+public:
+	VectorIterator() :cur(-1){}
+	VectorIterator(vector<Image> image) :_image(image), cur(0){}
+	~VectorIterator(){}
+	Image* theimage(int id);
+	Image* theimage();
+	void addnew(Image newimage);
+	int size();
+};
+
+class Picture {
+	Iterator* _images;
+	//add 
+	double computeNewScore(int result, double oldScore, double expectedWin);//
+
+public:
+	Picture();
+	~Picture();
+	pair<int, int> PickTwo(void);
+	void UpdataScore(int winid, int loseid);
+	void AddImage(string filename);
+	void ShowId(int id);
+};
+
+
+
+class Tab {
+	vector<int> images;
+	string tabname;
+public:
+	Tab(string _tabname) : tabname(_tabname) {}
+	void AddImage(int id);
+	void DeleteImage(int id);
+};
+
+class Tabset {
+	vector<Tab> Tabs;
+public:
+	Tabset() {}
+	void AddImage(string Tabname, int imageid);
+	vector<int> SortImage(vector<int> tabids);
+};
+
+
+
+
+//add
+Picture::Picture()
+{
+	_images = new VectorIterator;
+
+}
+Picture::~Picture()
+{
+	delete _images;
+}
+
+pair<int, int> Picture::PickTwo(void)
+{
+	srand((int)time(NULL));
+	//suppose the scores are between 1000 to 1800
+	int num = _images->size();//
+	int x = rand() % num;
+	double xscore = _images->theimage(x)->currentScore; //————————————change double
+	Iterator* temp = new VectorIterator;
+	int *a = new int[num];//record the recordance of temp and images——————————————change 
+	int cnt = 0;
+	for (int i = 0; i<num; i++)
+	{
+		if (_images->theimage(i)->currentScore <xscore + 100 && _images->theimage(i)->currentScore >xscore - 100 && i != x)
+		{
+			temp->addnew(*_images->theimage(i));
+			cnt++;
+			a[cnt] = i;
+		}
+
+	}
+	srand((int)time(NULL));
+	int y = rand() % cnt;
+	int j = 0;
+	for (j = 0; j < num; j++)
+	{
+		if (a[y] = j)
+			break;
+	}
+	pair<int, int> data = make_pair(x, j);
+	delete[]a;
+	delete temp;
+	return data;
+}
+void Picture::UpdataScore(int winid, int loseid)
+{
+	if (_images->theimage(winid)->currentScore == _images->theimage(loseid)->currentScore){
+		_images->theimage(winid)->expectedWin = 0.5;
+		_images->theimage(loseid)->expectedWin = 0.5;
+		return;
+	}
+	else{
+		double winSub = _images->theimage(loseid)->currentScore - _images->theimage(winid)->currentScore;
+		double wintemp = winSub / 400;
+		double lostSub = -winSub;//——————————————change 
+		double losttemp = lostSub / 400;
+		_images->theimage(winid)->expectedWin = 1 / (1 + (float)pow(10, wintemp));
+		_images->theimage(loseid)->expectedWin = 1 / (1 + (float)pow(10, losttemp));
+	}
+
+	double oldScore = _images->theimage(winid)->currentScore;//——————————————change double float
+	_images->theimage(winid)->currentScore = computeNewScore(1, oldScore, _images->theimage(winid)->expectedWin);
+
+	oldScore = _images->theimage(loseid)->currentScore;
+	_images->theimage(loseid)->currentScore = computeNewScore(0, oldScore, _images->theimage(loseid)->expectedWin);
+	return;
+}
+double Picture::computeNewScore(int result, double oldScore, double expectedWin){
+	double temp = result - expectedWin;
+	double currentScore = oldScore + 10 * temp;
+	return currentScore;
+}
+void Picture::AddImage(string filename)
+{
+	Image newimage(filename);
+	_images->addnew(newimage);
+}
+void Picture::ShowId(int id)
+{
+	_images->theimage(id)->Show();
+}
+
+
+
+
+
+
+Image* VectorIterator::theimage()
+{
+	return &_image[cur];
+}
+Image* VectorIterator::theimage(int id)
+{
+	if (id <= cur)
+		return &_image[id];
+	else
+		return NULL;
+}
+void VectorIterator::addnew(Image newimage)
+{
+	_image.push_back(newimage);
+	cur++;
+}
+int VectorIterator::size()
+{
+	return _image.size();
+}
